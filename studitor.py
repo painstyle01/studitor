@@ -29,7 +29,7 @@ bot = telebot.TeleBot(constants.token)
 app = flask.Flask(__name__)
 
 # Keyboards
-admin_chat_id = -455254336
+admin_chat_id = constants.admins
 
 main_menu = types.ReplyKeyboardMarkup(True)
 main_menu.row("📢Подати петицію")
@@ -87,6 +87,12 @@ def index():
     return ''
 
 
+def listToString(s):
+    str1 = ""
+    for ele in s:
+        str1 = str1 + " " + ele
+    return str1
+
 # Process webhook calls
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
@@ -115,14 +121,21 @@ def apply(message):
 def broadcast_handler(message):
     if message.chat.id == admin_chat_id:
         broadcast_message = message.text.split(" ")
-        print(broadcast_message)
+        broadcast_message.pop(0)
+        msg = listToString(broadcast_message)
         cursor.execute("SELECT id FROM users")
-        for x in cursor:
-            print(x)
+        ids = cursor.fetchall()
+        print(ids)
+        count = len(ids)
+        new_count = 0
+        for id in ids:
             try:
-                bot.send_message(x, broadcast_message[1:])
+                time.sleep(0.5)
+                bot.send_message(id[0], msg)
+                new_count += 1
             except:
                 pass
+        bot.send_message(admin_chat_id, 'Відправлено '+str(count)+' користувачам.\nОтримали '+str(new_count))
 
 
 @bot.message_handler(commands=['start'])
@@ -156,6 +169,7 @@ def text_handler(message):
                                  reply_markup=about_inline, parse_mode='HTML')
             if message.text == "🤝Підтримати петицію":
                 bot.send_message(message.from_user.id, 'Функція буде доступна найближчим часом')
+                #cursor.execute("UPDATE users SET step='want_to_vote' WHERE id="+str(message.from_user.id))
             if message.text == "📢Подати петицію":
                 bot.send_message(message.from_user.id,
                                  "Чудово. Зачекайте секунду...",
