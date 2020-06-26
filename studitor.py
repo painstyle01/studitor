@@ -6,7 +6,7 @@ cnx = mysql.connector.connect(host=constants.db_host,
                               password=constants.db_passwd,
                               database=constants.db_base)
 print(cnx)
-cursor = cnx.cursor()
+cursor = cnx.cursor(buffered=True)
 cnx.autocommit = True
 # Webhook settings
 WEBHOOK_HOST = constants.webhook_host
@@ -93,6 +93,14 @@ def listToString(s):
         str1 = str1 + " " + ele
     return str1
 
+
+def listToString2(s):
+    str1 = ""
+    for ele in s:
+        str1 = str(str1) + " " + str(ele)
+    return str1
+
+
 # Process webhook calls
 @app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
@@ -114,7 +122,9 @@ def apply(message):
         cursor.execute("UPDATE petitions SET visible=1 WHERE petition_id=" + str(id))
         cursor.execute("SELECT * FROM petitions WHERE petition_id=" + str(id))
         data = cursor.fetchone()
-        bot.send_message(data[1], 'Ваша петиція "' + str(data[5]) + '" була опублікована.')
+        cursor.execute("UPDATE petitions SET signatures='" + str(data[1]) + "' WHERE petition_id=" + str(id))
+        bot.send_message(data[1], 'Ваша петиція <i>\n\n"' + str(data[4]) + '"</i>\n\nбула опублікована.',
+                         parse_mode='HTML')
 
 
 @bot.message_handler(commands=['broadcast'])
@@ -135,7 +145,7 @@ def broadcast_handler(message):
                 new_count += 1
             except:
                 pass
-        bot.send_message(admin_chat_id, 'Відправлено '+str(count)+' користувачам.\nОтримали '+str(new_count))
+        bot.send_message(admin_chat_id, 'Відправлено ' + str(count) + ' користувачам.\nОтримали ' + str(new_count))
 
 
 @bot.message_handler(commands=['start'])
@@ -153,6 +163,13 @@ def start_handler(message):
 🎓Studitor
 ❕Це платформа, яка поєднує студентів, які бачать проблеми університетів та адміністрацію, яка може їх вирішити
                 """, reply_markup=main_menu)
+            else:
+                bot.send_message(message.from_user.id, """
+                                Привіт, """ + str(message.from_user.first_name) + """☺
+                🎓Studitor
+                ❕Це платформа, яка поєднує студентів, які бачать проблеми університетів та адміністрацію, яка може їх вирішити
+                                """, reply_markup=main_menu)
+                cursor.execute("UPDATE users SET step='main_menu' WHERE id="+str(message.from_user.id))
         except:
             pass
 
@@ -168,8 +185,7 @@ def text_handler(message):
                 bot.send_message(message.from_user.id, 'Посилання на <a href="studitor.com">сайт</a>',
                                  reply_markup=about_inline, parse_mode='HTML')
             if message.text == "🤝Підтримати петицію":
-                bot.send_message(message.from_user.id, 'Функція буде доступна найближчим часом')
-                #cursor.execute("UPDATE users SET step='want_to_vote' WHERE id="+str(message.from_user.id))
+                bot.send_message(message.from_user.id, 'Окей. Які петиції хочете переглян')
             if message.text == "📢Подати петицію":
                 bot.send_message(message.from_user.id,
                                  "Чудово. Зачекайте секунду...",
@@ -202,12 +218,12 @@ def text_handler(message):
                                          reply_markup=change_uni)
         if data[0] == 'uni_reselect':
             if message.text == 'Так':
-                cursor.execute("UPDATE users SET step='uni_select' WHERE id="+str(message.from_user.id))
+                cursor.execute("UPDATE users SET step='uni_select' WHERE id=" + str(message.from_user.id))
                 bot.send_message(message.from_user.id,
                                  '🧑‍🎓Окей, виберіть будь ласка університет',
                                  reply_markup=uni_markup)
             if message.text == 'Ні':
-                cursor.execute("UPDATE users SET step='petition_text' WHERE id="+str(message.from_user.id))
+                cursor.execute("UPDATE users SET step='petition_text' WHERE id=" + str(message.from_user.id))
                 cursor.execute(
                     "INSERT INTO petitions(author, views) VALUES('" + str(message.from_user.id) + "','1')")
                 cursor.execute(
@@ -286,7 +302,6 @@ def text_handler(message):
             bot.send_message(admin_chat_id, '<b>Нова петиція!</b>''\n' + str(
                 petition_info[4]) + '\n\nВключити видимість: <code>/apply ' + str(petition_info[0]) + '</code>',
                              parse_mode='HTML')
-
 
 
 # Remove webhook, it fails sometimes the set if there is a previous webhook
