@@ -1,4 +1,4 @@
-import logging, time, flask, telebot, constants, mysql.connector
+import logging, time, flask, telebot, constants, mysql.connector, schedule
 from telebot import types
 
 cnx = mysql.connector.connect(host=constants.db_host,
@@ -86,6 +86,18 @@ about_inline.add(url_buttom)
 def index():
     return ''
 
+def reconnect():
+  cnx.close()
+  cnx = mysql.connector.connect(host=constants.db_host,
+                              user=constants.db_user,
+                              password=constants.db_passwd,
+                              database=constants.db_base)
+  print(cnx)
+  cursor = cnx.cursor(buffered=True)
+  cnx.autocommit = True
+  
+schedule.every(3).hours.do(reconnect)
+  
 
 def listToString(s):
     str1 = ""
@@ -316,3 +328,6 @@ app.run(host=WEBHOOK_LISTEN,
         port=WEBHOOK_PORT,
         ssl_context=(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV),
         debug=True)
+
+while True:
+  schedule.run_pending()
