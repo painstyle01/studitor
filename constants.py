@@ -6,3 +6,5 @@ db_user = 'zv390787_bot'
 db_passwd = '8Y#Vn#8u9b'
 db_base = 'zv390787_bot'
 webhook_host = '185.65.244.165'
+admins = -1001470150298
+
